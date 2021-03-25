@@ -1,7 +1,0 @@
-void start(){
-
-}
-
-void loop(){
-    
-}
