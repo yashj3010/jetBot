@@ -1,17 +1,22 @@
-#include <AFMotor.h>
-#include<HardwareSerial.h>
-#include <Arduino.h>
 
+/////////////////  LIBRARIES ////////////////////////
+#include <Arduino.h>
+#include<HardwareSerial.h>
+#include <AFMotor.h>
+
+/////////////////  INSTANCES ////////////////////////
 AF_DCMotor motor1(1);
 AF_DCMotor motor2(2);
 AF_DCMotor motor3(3);
 AF_DCMotor motor4(4);
 
-void setup() {
-  Serial.begin(9600);           // set up Serial library at 9600 bps
-  Serial.println("Motor test!");
+/////////////////  Variables ////////////////////////
 
-  // turn on motor
+
+
+void setup() {
+  Serial.begin(9600);          
+
   motor1.setSpeed(255);
   motor2.setSpeed(255);
   motor3.setSpeed(255);
@@ -54,6 +59,13 @@ void moveBackward(){
   leftBackward();
 }
 
+void turnRight(){
+  rightForward();
+}
+
+void turnLeft(){
+  leftForward();
+}
 
 void loop() {
   moveForward();
