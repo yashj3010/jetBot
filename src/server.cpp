@@ -27,6 +27,7 @@ unsigned long lastMsg = 0;
 char msg[MSG_BUFFER_SIZE];
 int value = 0;
 int pos = 0;
+String inputMsg;
 
 void setup_wifi() {
 
@@ -57,12 +58,16 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print(topic);
   Serial.print("]");
   Serial.print("\n");
-  for (int i = 0; i < (int)length; i++)
+  
+  inputMsg = "";
+  int lengthofmsg = (int)length;
+  for (int i = 0; i < lengthofmsg; i++)
   {
-    Serial.print("Full Loop");
-    Serial.print((char)payload[i]);
-    Serial.print("\n");
+    inputMsg +=((char)payload[i]);
   }
+
+  Serial.println("Full Input Msg");
+  Serial.print(inputMsg);
 
   if (strcmp(topic, "inTopic") == 0)
   {
@@ -108,31 +113,20 @@ void callback(char* topic, byte* payload, unsigned int length) {
   
   if (strcmp(topic, "servoDown") == 0)
   {
-    Serial.print((char)payload[0]);
-    Serial.print("\n");
-    pos = (int)payload;
+    pos = inputMsg.toInt();
     Serial.println("ServoDown");
-    Serial.println(pos);
     servoDown.write(pos);
   }
   
   if (strcmp(topic, "servoUp") == 0)
   {
-    Serial.print((char)payload[0]);
-    Serial.print("\n");
-    pos = (int)payload;
-    Serial.println("servoUp");
-    Serial.println(pos);
+    pos = inputMsg.toInt();
     servoUp.write(pos);
   }
   
   if (strcmp(topic, "servoDistance") == 0)
   {
-    Serial.print((char)payload[0]);
-    Serial.print("\n");
-    pos = (int)payload;
-    Serial.println("servoDistance");
-    Serial.println(pos);
+    pos = inputMsg.toInt();
     servoDistance.write(pos);
   }
 }
@@ -151,7 +145,7 @@ void reconnect() {
       client.publish("outTopic", "hello world");
       // ... and resubscribe
       client.subscribe("inTopic");
-      client.subscribe("ServoDown");
+      client.subscribe("servoDown");
       client.subscribe("servoUp");
       client.subscribe("servoDistance");
     } else {
