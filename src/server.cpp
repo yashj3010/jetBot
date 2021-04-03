@@ -37,13 +37,19 @@ Servo servoDistance;
 // variables
 
 unsigned long lastMsg = 0;
+unsigned long lastMsgDistance = 0;
 
 char lightchar[50];
 char msg[MSG_BUFFER_SIZE];
 
 int value = 0;
 int pos = 0;
+
 int distance;
+int lastDistance;
+
+int rightDistance;
+int leftDistance;
 
 long duration;
 
@@ -52,33 +58,53 @@ String inputMsg;
 
 // main code block
 
+void moveBackward() {
+  digitalWrite(bit0, HIGH);
+  digitalWrite(bit1, HIGH);
+  digitalWrite(enable, HIGH);
+}
+
+void moveForward() {
+  digitalWrite(bit0, LOW);
+  digitalWrite(bit1, LOW);
+  digitalWrite(enable, HIGH);
+}
+
+void moveRight() {
+  digitalWrite(bit0, LOW);
+  digitalWrite(bit1, HIGH);
+  digitalWrite(enable, HIGH);
+}
+
+void moveLeft() {
+  digitalWrite(bit0, HIGH);
+  digitalWrite(bit1, LOW);
+  digitalWrite(enable, HIGH);
+}
+
+void moveStop() {
+  digitalWrite(enable, LOW);
+}
+
+void lookRight() {
+  servoDistance.write(45);
+  delay(300);
+
+}
+
+void look90() {
+  servoDistance.write(90);
+}
+
+void lookLeft() {
+  servoDistance.write(135);
+  delay(300);
+}
+
 char* PackIntData(int a , char b[]) {
   String pubString =  String(a);
   pubString.toCharArray(b, pubString.length() + 1);
   return b;
-}
-
-void getDistance(){
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-
-  // Sets the trigPin on HIGH state for 10 micro seconds
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-
-  // Reads the echoPin, returns the sound wave travel time in microseconds
-  duration = pulseIn(echoPin, HIGH);
-
-  // Calculating the distance
-  distance= duration*0.034/2;
-
-  // Prints the distance on the Serial Monitor
-  Serial.print("Distance: ");
-  Serial.println(distance);
-
-  client.publish("outTopic/Distance", PackIntData(distance, lightchar));
-  
 }
 
 void setup_wifi() {
@@ -110,12 +136,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print(topic);
   Serial.print("]");
   Serial.print("\n");
-  
+
   inputMsg = "";
   int lengthofmsg = (int)length;
   for (int i = 0; i < lengthofmsg; i++)
   {
-    inputMsg +=((char)payload[i]);
+    inputMsg += ((char)payload[i]);
   }
 
   Serial.println("Full Input Msg");
@@ -127,55 +153,40 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.print("\n");
 
     if ((char)payload[0] == '1') {
-      Serial.print("1");
-      digitalWrite(bit0, HIGH);
-      digitalWrite(bit1, HIGH);
-      digitalWrite(enable, HIGH);
-
+      moveForward();
     }
 
     if ((char)payload[0] == '2') {
-      Serial.print("2");
-      digitalWrite(bit0, LOW);
-      digitalWrite(bit1, LOW);
-      digitalWrite(enable, HIGH);
+      moveBackward();
     }
 
     if ((char)payload[0] == '3') {
-      Serial.print("3");
-      digitalWrite(bit0, LOW);
-      digitalWrite(bit1, HIGH);
-      digitalWrite(enable, HIGH);
-
+      moveRight();
     }
 
     if ((char)payload[0] == '4') {
-      Serial.print("4");
-      digitalWrite(bit0, HIGH);
-      digitalWrite(bit1, LOW);
-      digitalWrite(enable, HIGH);
+      moveLeft();
     }
 
     if ((char)payload[0] == '5') {
-      Serial.print("5");
-      digitalWrite(enable, LOW);
+      moveStop();
     }
 
   }
-  
+
   if (strcmp(topic, "servoDown") == 0)
   {
     pos = inputMsg.toInt();
     Serial.println("ServoDown");
     servoDown.write(pos);
   }
-  
+
   if (strcmp(topic, "servoUp") == 0)
   {
     pos = inputMsg.toInt();
     servoUp.write(pos);
   }
-  
+
   if (strcmp(topic, "servoDistance") == 0)
   {
     pos = inputMsg.toInt();
@@ -213,16 +224,16 @@ void reconnect() {
 void setup() {
   Serial.begin(115200);
 
-  pinMode(bit0, OUTPUT);    
+  pinMode(bit0, OUTPUT);
   pinMode(bit1, OUTPUT);
   pinMode(enable, OUTPUT);
 
-  pinMode(servoDownPin, OUTPUT);    
+  pinMode(servoDownPin, OUTPUT);
   pinMode(servoUpPin, OUTPUT);
   pinMode(servoDistancePin, OUTPUT);
 
-  pinMode(trigPin, OUTPUT); 
-  pinMode(echoPin, INPUT); 
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
 
   servoDown.attach(servoDownPin);
   servoUp.attach(servoUpPin);
@@ -241,12 +252,85 @@ void loop() {
   client.loop();
 
   unsigned long now = millis();
-  
+
+  if (now - lastMsgDistance > 250) {
+    lastMsgDistance = now;
+    look90();
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
+
+    duration = pulseIn(echoPin, HIGH);
+
+    lastDistance = distance;
+    distance = duration * 0.034 / 2;
+
+    Serial.print("Distance: ");
+    Serial.println(distance);
+    client.publish("outTopic/Distance", PackIntData(distance, lightchar));
+
+    if (distance < 35) {
+      moveStop();
+      lookRight();
+      lastMsgDistance = now;
+      Serial.print("inside less than 12: ");
+      Serial.println(distance);
+      digitalWrite(trigPin, LOW);
+      delayMicroseconds(2);
+      digitalWrite(trigPin, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(trigPin, LOW);
+
+      duration = pulseIn(echoPin, HIGH);
+      
+      rightDistance = duration * 0.034 / 2;
+
+      lookLeft();
+
+      digitalWrite(trigPin, LOW);
+      delayMicroseconds(2);
+      digitalWrite(trigPin, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(trigPin, LOW);
+
+      duration = pulseIn(echoPin, HIGH);
+
+      leftDistance = duration * 0.034 / 2;
+
+      Serial.println("rightDistance:");
+      Serial.println(rightDistance);
+
+      Serial.println("leftDistance:");
+      Serial.println(leftDistance);
+
+      if (rightDistance > leftDistance ) {
+        moveRight();
+        delay(1000);
+        moveStop();
+      }
+      else if (rightDistance < leftDistance)
+      {
+        moveLeft();
+        delay(1000);
+        moveStop();
+      }
+      else{
+        moveBackward();
+      }
+    }
+    else if (distance > 35)
+    {
+      moveForward();
+    }
+  }
+
+
   if (now - lastMsg > 2000) {
     lastMsg = now;
     ++value;
     snprintf (msg, MSG_BUFFER_SIZE, "hello world #%ld", value);
     client.publish("outTopic", msg);
-    getDistance();
   }
 }
