@@ -55,6 +55,9 @@ long duration;
 
 String inputMsg;
 
+bool isAutoMovement = false;
+bool getDistance = false;
+
 
 // main code block
 
@@ -87,7 +90,7 @@ void moveStop() {
 }
 
 void lookRight() {
-  servoDistance.write(45);
+  servoDistance.write(60);
   delay(300);
 
 }
@@ -97,7 +100,7 @@ void look90() {
 }
 
 void lookLeft() {
-  servoDistance.write(135);
+  servoDistance.write(120);
   delay(300);
 }
 
@@ -170,6 +173,29 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
     if ((char)payload[0] == '5') {
       moveStop();
+    }
+    if ((char)payload[0] == '6') {
+      getDistance = !getDistance;
+
+      if (getDistance){
+        client.publish("outTopic/DistanceStatus", "1");
+      }
+      else{
+        client.publish("outTopic/DistanceStatus", "0");
+      }
+    }
+    if ((char)payload[0] == '7') {
+      isAutoMovement = !isAutoMovement;
+      getDistance = (isAutoMovement == true) ? true : false;
+
+      if (!isAutoMovement) {
+        client.publish("outTopic/AutoMovementStatus", "0");
+        moveStop();
+      }
+      else{
+        client.publish("outTopic/AutoMovementStatus", "1");
+      }
+
     }
 
   }
@@ -253,24 +279,28 @@ void loop() {
 
   unsigned long now = millis();
 
-  if (now - lastMsgDistance > 250) {
-    lastMsgDistance = now;
-    look90();
-    digitalWrite(trigPin, LOW);
-    delayMicroseconds(2);
-    digitalWrite(trigPin, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPin, LOW);
+  if (getDistance) {
+    if (now - lastMsgDistance > 250) {
+      lastMsgDistance = now;
+      look90();
+      digitalWrite(trigPin, LOW);
+      delayMicroseconds(2);
+      digitalWrite(trigPin, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(trigPin, LOW);
 
-    duration = pulseIn(echoPin, HIGH);
+      duration = pulseIn(echoPin, HIGH);
 
-    lastDistance = distance;
-    distance = duration * 0.034 / 2;
+      lastDistance = distance;
+      distance = duration * 0.034 / 2;
 
-    Serial.print("Distance: ");
-    Serial.println(distance);
-    client.publish("outTopic/Distance", PackIntData(distance, lightchar));
+      Serial.print("Distance: ");
+      Serial.println(distance);
+      client.publish("outTopic/Distance", PackIntData(distance, lightchar));
+    }
+  }
 
+  if (isAutoMovement) {
     if (distance < 35) {
       moveStop();
       lookRight();
@@ -284,7 +314,7 @@ void loop() {
       digitalWrite(trigPin, LOW);
 
       duration = pulseIn(echoPin, HIGH);
-      
+
       rightDistance = duration * 0.034 / 2;
 
       lookLeft();
@@ -316,7 +346,7 @@ void loop() {
         delay(1000);
         moveStop();
       }
-      else{
+      else {
         moveBackward();
       }
     }
@@ -325,12 +355,6 @@ void loop() {
       moveForward();
     }
   }
+  client.publish("outTopic", "Alive");
 
-
-  if (now - lastMsg > 2000) {
-    lastMsg = now;
-    ++value;
-    snprintf (msg, MSG_BUFFER_SIZE, "hello world #%ld", value);
-    client.publish("outTopic", msg);
-  }
 }
