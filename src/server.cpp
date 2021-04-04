@@ -355,6 +355,6 @@ void loop() {
       moveForward();
     }
   }
-  client.publish("outTopic", "Alive");
+  client.publish("outTopic", "1");
 
 }
