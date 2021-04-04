@@ -178,10 +178,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
       getDistance = !getDistance;
 
       if (getDistance){
-        client.publish("outTopic/DistanceStatus", "1");
+        client.publish("outTopic/Status/Distance", "1");
       }
       else{
-        client.publish("outTopic/DistanceStatus", "0");
+        client.publish("outTopic/Status/Distance", "0");
       }
     }
     if ((char)payload[0] == '7') {
@@ -189,11 +189,11 @@ void callback(char* topic, byte* payload, unsigned int length) {
       getDistance = (isAutoMovement == true) ? true : false;
 
       if (!isAutoMovement) {
-        client.publish("outTopic/AutoMovementStatus", "0");
+        client.publish("outTopic/Status/AutoMovement", "0");
         moveStop();
       }
       else{
-        client.publish("outTopic/AutoMovementStatus", "1");
+        client.publish("outTopic/Status/AutoMovement", "1");
       }
 
     }
@@ -355,6 +355,6 @@ void loop() {
       moveForward();
     }
   }
-  client.publish("outTopic", "1");
+  client.publish("outTopic/Status/Alive", "1");
 
 }
