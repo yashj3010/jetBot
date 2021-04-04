@@ -58,6 +58,7 @@ String inputMsg;
 bool isAutoMovement = false;
 bool getDistance = false;
 
+
 // main code block
 
 void moveBackward() {
@@ -175,13 +176,24 @@ void callback(char* topic, byte* payload, unsigned int length) {
     }
     if ((char)payload[0] == '6') {
       getDistance = !getDistance;
+
+      if (getDistance){
+        client.publish("outTopic/Status/Distance", "1");
+      }
+      else{
+        client.publish("outTopic/Status/Distance", "0");
+      }
     }
     if ((char)payload[0] == '7') {
       isAutoMovement = !isAutoMovement;
       getDistance = (isAutoMovement == true) ? true : false;
 
       if (!isAutoMovement) {
+        client.publish("outTopic/Status/AutoMovement", "0");
         moveStop();
+      }
+      else{
+        client.publish("outTopic/Status/AutoMovement", "1");
       }
 
     }
@@ -343,12 +355,6 @@ void loop() {
       moveForward();
     }
   }
+  client.publish("outTopic/Status/Alive", "1");
 
-
-  if (now - lastMsg > 2000) {
-    lastMsg = now;
-    ++value;
-    snprintf (msg, MSG_BUFFER_SIZE, "hello world #%ld", value);
-    client.publish("outTopic", msg);
-  }
 }
