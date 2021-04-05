@@ -24,7 +24,7 @@
 
 const char* ssid = "Node 0";
 const char* password = "yashj1030";
-const char *mqtt_server = "192.168.0.106";
+const char *mqtt_server = "192.168.0.107";
 
 // instances
 WiFiClient espClient;
@@ -104,257 +104,280 @@ void lookLeft() {
   delay(300);
 }
 
-char* PackIntData(int a , char b[]) {
-  String pubString =  String(a);
-  pubString.toCharArray(b, pubString.length() + 1);
-  return b;
-}
-
-void setup_wifi() {
-
-  delay(10);
-  // We start by connecting to a WiFi network
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-
-  randomSeed(micros());
-
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-}
-
-void callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("]");
-  Serial.print("\n");
-
-  inputMsg = "";
-  int lengthofmsg = (int)length;
-  for (int i = 0; i < lengthofmsg; i++)
-  {
-    inputMsg += ((char)payload[i]);
-  }
-
-  Serial.println("Full Input Msg");
-  Serial.print(inputMsg);
-
-  if (strcmp(topic, "inTopic") == 0)
-  {
-    Serial.print((char)payload[0]);
-    Serial.print("\n");
-
-    if ((char)payload[0] == '1') {
-      moveForward();
-    }
-
-    if ((char)payload[0] == '2') {
-      moveBackward();
-    }
-
-    if ((char)payload[0] == '3') {
-      moveRight();
-    }
-
-    if ((char)payload[0] == '4') {
-      moveLeft();
-    }
-
-    if ((char)payload[0] == '5') {
-      moveStop();
-    }
-    if ((char)payload[0] == '6') {
-      getDistance = !getDistance;
-
-      if (getDistance){
-        client.publish("outTopic/Status/Distance", "1");
-      }
-      else{
-        client.publish("outTopic/Status/Distance", "0");
-      }
-    }
-    if ((char)payload[0] == '7') {
-      isAutoMovement = !isAutoMovement;
-      getDistance = (isAutoMovement == true) ? true : false;
-
-      if (!isAutoMovement) {
-        client.publish("outTopic/Status/AutoMovement", "0");
-        moveStop();
-      }
-      else{
-        client.publish("outTopic/Status/AutoMovement", "1");
-      }
-
-    }
-
-  }
-
-  if (strcmp(topic, "servoDown") == 0)
-  {
-    pos = inputMsg.toInt();
-    Serial.println("ServoDown");
-    servoDown.write(pos);
-  }
-
-  if (strcmp(topic, "servoUp") == 0)
-  {
-    pos = inputMsg.toInt();
-    servoUp.write(pos);
-  }
-
-  if (strcmp(topic, "servoDistance") == 0)
-  {
-    pos = inputMsg.toInt();
-    servoDistance.write(pos);
-  }
-}
-
-void reconnect() {
-  // Loop until we're reconnected
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Create a random client ID
-    String clientId = "ESP8266Client-";
-    clientId += String(random(0xffff), HEX);
-    // Attempt to connect
-    if (client.connect(clientId.c_str())) {
-      Serial.println("connected");
-      // Once connected, publish an announcement...
-      client.publish("outTopic", "hello world");
-      // ... and resubscribe
-      client.subscribe("inTopic");
-      client.subscribe("servoDown");
-      client.subscribe("servoUp");
-      client.subscribe("servoDistance");
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
-  }
-}
-
-void setup() {
-  Serial.begin(115200);
-
-  pinMode(bit0, OUTPUT);
-  pinMode(bit1, OUTPUT);
-  pinMode(enable, OUTPUT);
-
-  pinMode(servoDownPin, OUTPUT);
-  pinMode(servoUpPin, OUTPUT);
-  pinMode(servoDistancePin, OUTPUT);
-
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
-
-  servoDown.attach(servoDownPin);
-  servoUp.attach(servoUpPin);
-  servoDistance.attach(servoDistancePin);
-
-  setup_wifi();
-  client.setServer(mqtt_server, 1883);
-  client.setCallback(callback);
-}
-
-void loop() {
-
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();
-
-  unsigned long now = millis();
+void toggleGetDistance() {
+  getDistance = !getDistance;
 
   if (getDistance) {
-    if (now - lastMsgDistance > 250) {
-      lastMsgDistance = now;
-      look90();
-      digitalWrite(trigPin, LOW);
-      delayMicroseconds(2);
-      digitalWrite(trigPin, HIGH);
-      delayMicroseconds(10);
-      digitalWrite(trigPin, LOW);
+    client.publish("outTopic/Status/Distance", "1");
+  }
+  else {
+    client.publish("outTopic/Status/Distance", "0");
+  }
+}
 
-      duration = pulseIn(echoPin, HIGH);
+void toggleAutoMovement() {
+  isAutoMovement = !isAutoMovement;
+  getDistance = (isAutoMovement == true) ? true : false;
 
-      lastDistance = distance;
-      distance = duration * 0.034 / 2;
+  if (!isAutoMovement) {
+    client.publish("outTopic/Status/AutoMovement", "0");
+    client.publish("outTopic/Status/Distance", "0");
+    moveStop();
+  }
+  else {
+    client.publish("outTopic/Status/AutoMovement", "1");
+    client.publish("outTopic/Status/Distance", "1");
+  }
+}
+  void powerStatus() {
+    client.publish("outTopic/Status/Alive", "1");
+  }
+  
+  void getDistanceValue() {
+    look90();
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
 
-      Serial.print("Distance: ");
-      Serial.println(distance);
-      client.publish("outTopic/Distance", PackIntData(distance, lightchar));
-    }
+    duration = pulseIn(echoPin, HIGH);
+
+    lastDistance = distance;
+    distance = duration * 0.034 / 2;
+
+    Serial.print("Distance: ");
+    Serial.println(distance);
+    client.publish("outTopic/Distance", PackIntData(distance, lightchar));
   }
 
-  if (isAutoMovement) {
-    if (distance < 35) {
-      moveStop();
-      lookRight();
-      lastMsgDistance = now;
-      Serial.print("inside less than 12: ");
-      Serial.println(distance);
-      digitalWrite(trigPin, LOW);
-      delayMicroseconds(2);
-      digitalWrite(trigPin, HIGH);
-      delayMicroseconds(10);
-      digitalWrite(trigPin, LOW);
+  char* PackIntData(int a , char b[]) {
+    String pubString =  String(a);
+    pubString.toCharArray(b, pubString.length() + 1);
+    return b;
+  }
 
-      duration = pulseIn(echoPin, HIGH);
+  void setup_wifi() {
 
-      rightDistance = duration * 0.034 / 2;
+    delay(10);
+    // We start by connecting to a WiFi network
+    Serial.println();
+    Serial.print("Connecting to ");
+    Serial.println(ssid);
 
-      lookLeft();
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid, password);
 
-      digitalWrite(trigPin, LOW);
-      delayMicroseconds(2);
-      digitalWrite(trigPin, HIGH);
-      delayMicroseconds(10);
-      digitalWrite(trigPin, LOW);
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(500);
+      Serial.print(".");
+    }
 
-      duration = pulseIn(echoPin, HIGH);
+    randomSeed(micros());
 
-      leftDistance = duration * 0.034 / 2;
+    Serial.println("");
+    Serial.println("WiFi connected");
+    Serial.println("IP address: ");
+    Serial.println(WiFi.localIP());
+  }
 
-      Serial.println("rightDistance:");
-      Serial.println(rightDistance);
+  void callback(char* topic, byte * payload, unsigned int length) {
+    Serial.print("Message arrived [");
+    Serial.print(topic);
+    Serial.print("]");
+    Serial.print("\n");
 
-      Serial.println("leftDistance:");
-      Serial.println(leftDistance);
+    inputMsg = "";
+    int lengthofmsg = (int)length;
+    for (int i = 0; i < lengthofmsg; i++)
+    {
+      inputMsg += ((char)payload[i]);
+    }
 
-      if (rightDistance > leftDistance ) {
-        moveRight();
-        delay(1000);
-        moveStop();
+    Serial.println("Full Input Msg");
+    Serial.print(inputMsg);
+
+    if (strcmp(topic, "inTopic") == 0)
+    {
+      Serial.print((char)payload[0]);
+      Serial.print("\n");
+
+      if ((char)payload[0] == '1') {
+        moveForward();
       }
-      else if (rightDistance < leftDistance)
-      {
-        moveLeft();
-        delay(1000);
-        moveStop();
-      }
-      else {
+
+      if ((char)payload[0] == '2') {
         moveBackward();
       }
+
+      if ((char)payload[0] == '3') {
+        moveRight();
+      }
+
+      if ((char)payload[0] == '4') {
+        moveLeft();
+      }
+
+      if ((char)payload[0] == '5') {
+        moveStop();
+      }
+      if ((char)payload[0] == '6') {
+        toggleGetDistance();
+      }
+      if ((char)payload[0] == '7') {
+        toggleAutoMovement();
+      }
+
     }
-    else if (distance > 35)
+
+    if (strcmp(topic, "servoDown") == 0)
     {
-      moveForward();
+      pos = inputMsg.toInt();
+      Serial.println("ServoDown");
+      servoDown.write(pos);
+    }
+
+    if (strcmp(topic, "servoUp") == 0)
+    {
+      pos = inputMsg.toInt();
+      servoUp.write(pos);
+    }
+
+    if (strcmp(topic, "servoDistance") == 0)
+    {
+      pos = inputMsg.toInt();
+      servoDistance.write(pos);
     }
   }
-  client.publish("outTopic/Status/Alive", "1");
 
-}
+  void reconnect() {
+    // Loop until we're reconnected
+    while (!client.connected()) {
+      Serial.print("Attempting MQTT connection...");
+      // Create a random client ID
+      String clientId = "ESP8266Client-";
+      clientId += String(random(0xffff), HEX);
+      // Attempt to connect
+      if (client.connect(clientId.c_str())) {
+        Serial.println("connected");
+        // Once connected, publish an announcement...
+        client.publish("outTopic", "hello world");
+        // ... and resubscribe
+        client.subscribe("inTopic");
+        client.subscribe("servoDown");
+        client.subscribe("servoUp");
+        client.subscribe("servoDistance");
+      } else {
+        Serial.print("failed, rc=");
+        Serial.print(client.state());
+        Serial.println(" try again in 5 seconds");
+        // Wait 5 seconds before retrying
+        delay(5000);
+      }
+    }
+  }
+
+  void setup() {
+    Serial.begin(115200);
+
+    pinMode(bit0, OUTPUT);
+    pinMode(bit1, OUTPUT);
+    pinMode(enable, OUTPUT);
+
+    pinMode(servoDownPin, OUTPUT);
+    pinMode(servoUpPin, OUTPUT);
+    pinMode(servoDistancePin, OUTPUT);
+
+    pinMode(trigPin, OUTPUT);
+    pinMode(echoPin, INPUT);
+
+    servoDown.attach(servoDownPin);
+    servoUp.attach(servoUpPin);
+    servoDistance.attach(servoDistancePin);
+
+    setup_wifi();
+    client.setServer(mqtt_server, 1883);
+    client.setCallback(callback);
+  }
+
+  void loop() {
+    if (!client.connected()) {
+      reconnect();
+    }
+    client.loop();
+
+    unsigned long now = millis();
+
+    if (getDistance) {
+      if (now - lastMsgDistance > 250) {
+        lastMsgDistance = now;
+        getDistanceValue();
+      }
+    }
+
+    if (isAutoMovement) {
+      if (distance < 35) {
+        client.publish("outTopic/Collision/Status", "1");
+        client.publish("outTopic/Collision/Distance", PackIntData(distance, lightchar));
+        moveStop();
+        lookRight();
+        lastMsgDistance = now;
+        // Serial.print("inside less than 12: ");
+        Serial.println(distance);
+        digitalWrite(trigPin, LOW);
+        delayMicroseconds(2);
+        digitalWrite(trigPin, HIGH);
+        delayMicroseconds(10);
+        digitalWrite(trigPin, LOW);
+
+        duration = pulseIn(echoPin, HIGH);
+
+        rightDistance = duration * 0.034 / 2;
+
+        lookLeft();
+
+        digitalWrite(trigPin, LOW);
+        delayMicroseconds(2);
+        digitalWrite(trigPin, HIGH);
+        delayMicroseconds(10);
+        digitalWrite(trigPin, LOW);
+
+        duration = pulseIn(echoPin, HIGH);
+
+        leftDistance = duration * 0.034 / 2;
+
+        // Serial.println("rightDistance:");
+        // Serial.println(rightDistance);
+
+        // Serial.println("leftDistance:");
+        // Serial.println(leftDistance);
+
+        if (rightDistance > leftDistance ) {
+          moveRight();
+          delay(1000);
+          moveStop();
+        }
+        else if (rightDistance < leftDistance)
+        {
+          moveLeft();
+          delay(1000);
+          moveStop();
+        }
+        else {
+          moveBackward();
+        }
+      }
+      else if (distance > 35)
+      {
+        client.publish("outTopic/Collision/Status", "0");
+        client.publish("outTopic/Collision/Distance", "");
+        moveForward();
+      }
+    }
+
+    if (now - lastMsg > 2000) {
+      lastMsg = now;
+      powerStatus();
+    }
+
+  }
