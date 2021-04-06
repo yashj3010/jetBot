@@ -282,10 +282,10 @@ void callback(char* topic, byte * payload, unsigned int length) {
       duration *= 1000;
       endTime = initialTime + duration;
 
-      Serial.print(duration);
-      Serial.println("duration");
-      Serial.print(endTime);
-      Serial.println("endTime");
+      // Serial.print(duration);
+      // Serial.println("duration");
+      // Serial.print(endTime);
+      // Serial.println("endTime");
 
       toggleAutoMovement();
       isOnTimer = true;
@@ -389,11 +389,13 @@ void loop() {
       client.publish("outTopic/Collision/Status", "1");
       client.publish("outTopic/Collision/Distance", PackIntData(distance, lightchar));
       // client.publish("outTopic/Collision/ClickPhoto", PackIntData(distance, lightchar));
-      xEnd = millis() - boundsDetectionStart;
+      boundsDetectionStart = xEnd;
+      xEnd = millis();
       client.publish("outTopic/Bounds/X", PackIntData(xEnd, lightchar));
 
       moveStop();
       rightDistance = getDistanceValue(LOOK_RIGHT_ANGLE);
+      delay(250);
       leftDistance = getDistanceValue(LOOK_LEFT_ANGLE);
       ;
       if (rightDistance > leftDistance ) {

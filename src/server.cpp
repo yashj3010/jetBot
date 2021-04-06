@@ -142,7 +142,7 @@ void toggleGetDistance() {
 }
 
 void toggleAutoMovement() {
-  boundsDetectionStart = millis()
+  boundsDetectionStart = millis();
   isAutoMovement = !isAutoMovement;
   getDistance = (isAutoMovement == true) ? true : false;
 
@@ -276,16 +276,16 @@ void callback(char* topic, byte * payload, unsigned int length) {
       char dur[2];
       dur[0] = (char)payload[1];
       dur[1] = (char)payload[2];
-      
+
       initialTime = millis();
       duration = atoi(dur);
       duration *= 1000;
       endTime = initialTime + duration;
 
-      Serial.print(duration);
-      Serial.println("duration");
-      Serial.print(endTime);
-      Serial.println("endTime");
+      // Serial.print(duration);
+      // Serial.println("duration");
+      // Serial.print(endTime);
+      // Serial.println("endTime");
 
       toggleAutoMovement();
       isOnTimer = true;
@@ -380,7 +380,7 @@ void loop() {
   }
 
   if (isAutoMovement) {
-    if (isOnTimer){
+    if (isOnTimer) {
       movementTimer();
     }
 
@@ -389,11 +389,13 @@ void loop() {
       client.publish("outTopic/Collision/Status", "1");
       client.publish("outTopic/Collision/Distance", PackIntData(distance, lightchar));
       // client.publish("outTopic/Collision/ClickPhoto", PackIntData(distance, lightchar));
-      xEnd = millis() - boundsDetectionStart;
+      boundsDetectionStart = xEnd;
+      xEnd = millis();
       client.publish("outTopic/Bounds/X", PackIntData(xEnd, lightchar));
 
       moveStop();
       rightDistance = getDistanceValue(LOOK_RIGHT_ANGLE);
+      delay(250);
       leftDistance = getDistanceValue(LOOK_LEFT_ANGLE);
       ;
       if (rightDistance > leftDistance ) {
@@ -418,7 +420,7 @@ void loop() {
       moveForward();
     }
   }
-  else{
+  else {
     moveStop();
   }
 
