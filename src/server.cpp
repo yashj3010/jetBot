@@ -19,6 +19,13 @@
 
 #define MSG_BUFFER_SIZE  (50)
 
+#define collisonDistance 45
+#define lookRight 60
+#define lookStraight 90
+#define lookLeft 120
+#define messageReceiveTime 2000
+
+
 
 // consts
 
@@ -90,17 +97,17 @@ void moveStop() {
 }
 
 void lookRight() {
-  servoDistance.write(60);
+  servoDistance.write(lookRight);
   delay(300);
 
 }
 
 void look90() {
-  servoDistance.write(90);
+  servoDistance.write(lookStraight);
 }
 
 void lookLeft() {
-  servoDistance.write(120);
+  servoDistance.write(lookLeft);
   delay(300);
 }
 
@@ -316,7 +323,7 @@ void toggleAutoMovement() {
     }
 
     if (isAutoMovement) {
-      if (distance < 35) {
+      if (distance < collisonDistance) {
         client.publish("outTopic/Collision/Status", "1");
         client.publish("outTopic/Collision/Distance", PackIntData(distance, lightchar));
         moveStop();
@@ -367,7 +374,7 @@ void toggleAutoMovement() {
           moveBackward();
         }
       }
-      else if (distance > 35)
+      else if (distance > collisonDistance)
       {
         client.publish("outTopic/Collision/Status", "0");
         client.publish("outTopic/Collision/Distance", "");
@@ -375,7 +382,7 @@ void toggleAutoMovement() {
       }
     }
 
-    if (now - lastMsg > 2000) {
+    if (now - lastMsg > messageReceiveTime) {
       lastMsg = now;
       powerStatus();
     }
