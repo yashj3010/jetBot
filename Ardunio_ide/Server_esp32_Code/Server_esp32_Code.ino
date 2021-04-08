@@ -43,7 +43,7 @@
 
 const char* ssid = "Node 0";
 const char* password = "yashj1030";
-const char *mqtt_server = "192.168.0.107";
+const char *mqtt_server = "192.168.0.113";
 
 // instances
 WiFiClient espClient;
