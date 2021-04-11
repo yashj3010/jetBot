@@ -43,7 +43,7 @@
 
 const char* ssid = "Node 0";
 const char* password = "yashj1030";
-const char *mqtt_server = "192.168.0.107";
+const char *mqtt_server = "192.168.0.113";
 
 // instances
 WiFiClient espClient;
@@ -165,7 +165,7 @@ void movementTimer() {
   if (now >= endTime)
   {
     Serial.println("STOPPED");
-    toggleAutoMovement();
+    // toggleAutoMovement();
     isOnTimer = false;
     Serial.println(isAutoMovement);
   }
@@ -177,7 +177,8 @@ void movementTimer() {
 }
 
 int getDistanceValue(int angle) {
-  lookAtAngle(angle);
+  // lookAtAngle(angle);
+  servoDistance.write(angle);
   digitalWrite(TRIGGER_PIN, LOW);
   delayMicroseconds(2);
   digitalWrite(TRIGGER_PIN, HIGH);
@@ -379,6 +380,16 @@ void loop() {
     }
   }
 
+  if (!isAutoMovement) {
+    client.publish("outTopic/Status/AutoMovement", "0");
+    client.publish("outTopic/Status/Distance", "0");
+    moveStop();
+  }
+  else {
+    client.publish("outTopic/Status/AutoMovement", "1");
+    client.publish("outTopic/Status/Distance", "1");
+  }
+
   if (isAutoMovement) {
     if (isOnTimer) {
       movementTimer();
@@ -388,16 +399,17 @@ void loop() {
 
       client.publish("outTopic/Collision/Status", "1");
       client.publish("outTopic/Collision/Distance", PackIntData(distance, lightchar));
-      // client.publish("outTopic/Collision/ClickPhoto", PackIntData(distance, lightchar));
-      boundsDetectionStart = xEnd;
-      xEnd = millis();
+
+      xEnd = millis() - boundsDetectionStart;
       client.publish("outTopic/Bounds/X", PackIntData(xEnd, lightchar));
 
       moveStop();
       rightDistance = getDistanceValue(LOOK_RIGHT_ANGLE);
       delay(250);
       leftDistance = getDistanceValue(LOOK_LEFT_ANGLE);
-      ;
+      delay(250);
+      lookAtAngle(LOOK_STRAIGHT_ANGLE);
+
       if (rightDistance > leftDistance ) {
         moveRight();
         delay(1000);
@@ -411,17 +423,24 @@ void loop() {
       }
       else {
         moveBackward();
+        client.publish("outTopic/Collision/Distance", "ERROR 1");
       }
     }
-    else if (distance > COLLISION_DISTANCE)
+    else if (distance >= COLLISION_DISTANCE)
     {
+      lookAtAngle(LOOK_STRAIGHT_ANGLE);
       client.publish("outTopic/Collision/Status", "0");
       client.publish("outTopic/Collision/Distance", "");
       moveForward();
     }
   }
-  else {
+  else if (!isAutoMovement) {
     moveStop();
+    lookAtAngle(LOOK_STRAIGHT_ANGLE);
+    client.publish("outTopic/Collision/Distance", "ERROR 2");
+  }
+  else{
+    client.publish("outTopic/Collision/Distance", "ERROR 3");
   }
 
   if (now - lastMsg > MESSAGE_PUBLISH_TIME) {
