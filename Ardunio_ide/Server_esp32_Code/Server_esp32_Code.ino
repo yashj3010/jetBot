@@ -168,13 +168,13 @@ void movementTimer() {
   unsigned long now = millis();
   if (now >= endTime)
   {
-    Serial.println("STOPPED");
+    // Serial.println("STOPPED");
     // toggleAutoMovement();
     isOnTimer = false;
     Serial.println(isAutoMovement);
   }
   else {
-    Serial.println("KEEP ON GOING");
+    // Serial.println("KEEP ON GOING");
     moveForward();
   }
 
@@ -266,7 +266,7 @@ void callback(char* topic, byte * payload, unsigned int length) {
   }
 
   Serial.println("Full Input Msg");
-  Serial.print(inputMsg);
+  Serial.println(inputMsg);
 
   if (strcmp(topic, "inTopic") == 0)
   {
@@ -332,6 +332,8 @@ void callback(char* topic, byte * payload, unsigned int length) {
     }
     convertStrtoArr(inputMsg);
     size_t n = sizeof(turnsDirection) / sizeof(turnsDirection[0]);
+    Serial.println("#############");
+
     for (int i = 0; i < n; i++)
     {
       Serial.println(turnsDirection[i]);
@@ -341,7 +343,6 @@ void callback(char* topic, byte * payload, unsigned int length) {
   if (strcmp(topic, "servoDown") == 0)
   {
     pos = inputMsg.toInt();
-    Serial.println("ServoDown");
     servoDown.write(pos);
   }
 

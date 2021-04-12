@@ -168,13 +168,13 @@ void movementTimer() {
   unsigned long now = millis();
   if (now >= endTime)
   {
-    Serial.println("STOPPED");
+    // Serial.println("STOPPED");
     // toggleAutoMovement();
     isOnTimer = false;
     Serial.println(isAutoMovement);
   }
   else {
-    Serial.println("KEEP ON GOING");
+    // Serial.println("KEEP ON GOING");
     moveForward();
   }
 
@@ -202,10 +202,6 @@ int getDistanceValue(int angle) {
 
 void convertStrtoArr(String str)
 {
-    //int str_length = str.length();
-
-    int arr[10] = { 0 };
-  
     int j = 0, i;
 
     for (i = 0; str[i] != '\0'; i++) {
@@ -266,7 +262,7 @@ void callback(char* topic, byte * payload, unsigned int length) {
   }
 
   Serial.println("Full Input Msg");
-  Serial.print(inputMsg);
+  Serial.println(inputMsg);
 
   if (strcmp(topic, "inTopic") == 0)
   {
@@ -332,17 +328,17 @@ void callback(char* topic, byte * payload, unsigned int length) {
     }
     convertStrtoArr(inputMsg);
     size_t n = sizeof(turnsDirection) / sizeof(turnsDirection[0]);
+    Serial.print("#############");
+
     for (int i = 0; i < n; i++)
     {
-      inputMsg += ((char)turnsDirection[i]);
+      Serial.print(turnsDirection[i]);
     }
-    Serial.println(inputMsg);
   }
 
   if (strcmp(topic, "servoDown") == 0)
   {
     pos = inputMsg.toInt();
-    Serial.println("ServoDown");
     servoDown.write(pos);
   }
 
