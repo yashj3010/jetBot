@@ -39,29 +39,20 @@ def index():
 @app.route("/calc", methods=["GET","POST"])
 
 def predict():
-    # paramIndex = [7,5,6,3,4]
-
     data = []
     parList = []
 
     params = request.json
     parDict = params[0]
 
-    # print("####################")
-    # print(params)
-    # print(parDict)
-    # print("####################")
-
     for i in range(len(params)):
         params[i] = float(params[i])
 
-    # parListValues = list(parDict.values())
-
     parList = params
 
-    print("####################")
-    print(parList)
-    print("####################")
+    # print("####################")
+    # print(parList)
+    # print("####################")
 
     if (params == None):
         answer = "No Data Recieved"
@@ -92,22 +83,43 @@ def predict():
         # ------ Returning The Answer --------
         return str(answer),201       
 
-@app.route("/calc", methods=["GET","POST"])
+@app.route("/convcsv", methods=["GET","POST"])
 
 def convCsv():
     collisions = []
+    turns = []
+    data = []
 
     # ------ READING MinMaxValue Csv Created During Normalization --------
-    with open(r'collisions.csv','rt')as f:
+    with open(r'CSVs\\Source\\collisions.csv','rt')as f:
         data = csv.reader(f)
         for row in data:
             collisions.append(row[0])
-    
-    collisionsTemp = collisions
+
+    with open(r'CSVs\\Source\\Decisions.csv','rt')as f:
+        data = csv.reader(f)
+        for row in data:
+            turns.append(row[0])
+
+    collisions = [int(i) for i in collisions]
+    collisionsTemp = list(collisions)
 
     for i in range(len(collisions)):
         if i != 0:
-            collisions[i] - collisionsTemp[i-1]
+            #print(i,collisions[i],"=",collisions[i],"-",collisionsTemp[i-1])
+            collisions[i] = collisions[i] - collisionsTemp[i-1]
+
+    print(collisions)
+
+    filename = "CSVs\\Source\\timeFrame.csv"
+
+    with open(filename, 'w') as csvfile: 
+        csvwriter = csv.writer(csvfile) 
+        csvwriter.writerow(collisions) 
+
+    answer = "Success"
+    
+    return str(answer),201       
 
 
 # start the flask app, allow remote connections

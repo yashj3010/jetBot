@@ -22,7 +22,7 @@
 
 #define MSG_BUFFER_SIZE (50)
 
-#define COLLISION_DISTANCE 45
+#define COLLISION_DISTANCE 70
 
 #define LOOK_RIGHT_ANGLE    60
 #define LOOK_STRAIGHT_ANGLE 90
@@ -57,12 +57,12 @@ Servo servoDistance;
 
 unsigned long lastMsg = 0;
 unsigned long lastMsgDistance = 0;
+unsigned long lastMsgDistanceMovement = 0;
 unsigned long initialTime = 0;
 unsigned long endTime = 0;
 
 int boundsDetectionStart = 0;
 int xEnd = 0;
-
 
 char lightchar[50];
 char msg[MSG_BUFFER_SIZE];
@@ -84,6 +84,8 @@ bool isAutoMovement = false;
 bool getDistance = false;
 bool isOnTimer = false;
 
+int str_length = 10;
+int turnsDirection[] = {0,0,0,0,0,0,0,0,0,0};
 
 // main code block
 
@@ -157,7 +159,9 @@ void toggleAutoMovement() {
   }
 }
 void powerStatus() {
-  client.publish("outTopic/Status/Alive", "1");
+  ++value;
+  snprintf (msg, MSG_BUFFER_SIZE, "hello world #%ld", value);
+  client.publish("outTopic/Status/Alive", msg);
 }
 
 void movementTimer() {
@@ -194,6 +198,28 @@ int getDistanceValue(int angle) {
   // Serial.println(distance);
   client.publish("outTopic/Distance", PackIntData(distance, lightchar));
   return distance;
+}
+
+void convertStrtoArr(String str)
+{
+    //int str_length = str.length();
+
+    int arr[10] = { 0 };
+  
+    int j = 0, i;
+
+    for (i = 0; str[i] != '\0'; i++) {
+        if (str[i] == ',')
+            continue;
+         if (str[i] == ' '){
+            j++;
+        }
+        else {
+            turnsDirection[j] = turnsDirection[j] * 10 + (str[i] - 48);
+        }
+    }
+
+    //turnsDirection = arr;
 }
 
 char* PackIntData(int a , char b[]) {
@@ -295,6 +321,23 @@ void callback(char* topic, byte * payload, unsigned int length) {
 
   }
 
+  if (strcmp(topic, "inTopic/Router/Time") == 0)
+  {
+    inputMsg = "";
+    int lengthofmsg = (int)length;
+
+    for (int i = 0; i < lengthofmsg; i++)
+    {
+      inputMsg += ((char)payload[i]);
+    }
+    convertStrtoArr(inputMsg);
+    size_t n = sizeof(turnsDirection) / sizeof(turnsDirection[0]);
+    for (int i = 0; i < n; i++)
+    {
+      Serial.println(turnsDirection[i]);
+    }
+  }
+
   if (strcmp(topic, "servoDown") == 0)
   {
     pos = inputMsg.toInt();
@@ -332,6 +375,7 @@ void reconnect() {
       client.subscribe("servoDown");
       client.subscribe("servoUp");
       client.subscribe("servoDistance");
+      client.subscribe("inTopic/Router/Time");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -366,6 +410,7 @@ void setup() {
 }
 
 void loop() {
+
   if (!client.connected()) {
     reconnect();
   }
@@ -380,67 +425,63 @@ void loop() {
     }
   }
 
-  if (!isAutoMovement) {
-    client.publish("outTopic/Status/AutoMovement", "0");
-    client.publish("outTopic/Status/Distance", "0");
-    moveStop();
-  }
-  else {
-    client.publish("outTopic/Status/AutoMovement", "1");
-    client.publish("outTopic/Status/Distance", "1");
-  }
+  if (now - lastMsgDistanceMovement > DISTANCE_SAMPLE_TIME) {
+    lastMsgDistanceMovement = now;
 
-  if (isAutoMovement) {
-    if (isOnTimer) {
-      movementTimer();
-    }
-
-    if (distance < COLLISION_DISTANCE) {
-
-      client.publish("outTopic/Collision/Status", "1");
-      client.publish("outTopic/Collision/Distance", PackIntData(distance, lightchar));
-
-      xEnd = millis() - boundsDetectionStart;
-      client.publish("outTopic/Bounds/X", PackIntData(xEnd, lightchar));
-
-      moveStop();
-      rightDistance = getDistanceValue(LOOK_RIGHT_ANGLE);
-      delay(250);
-      leftDistance = getDistanceValue(LOOK_LEFT_ANGLE);
-      delay(250);
-      lookAtAngle(LOOK_STRAIGHT_ANGLE);
-
-      if (rightDistance > leftDistance ) {
-        moveRight();
-        delay(1000);
-        moveStop();
+    if (isAutoMovement == true) {
+      if (isOnTimer) {
+        movementTimer();
       }
-      else if (rightDistance < leftDistance)
+      if (distance < COLLISION_DISTANCE) {
+
+        client.publish("outTopic/Collision/Status", "1");
+        client.publish("outTopic/Collision/Distance", PackIntData(distance, lightchar));
+
+        xEnd = millis() - boundsDetectionStart;
+        client.publish("outTopic/Bounds/X", PackIntData(xEnd, lightchar));
+
+        moveStop();
+        rightDistance = getDistanceValue(LOOK_RIGHT_ANGLE);
+        delay(250);
+        leftDistance = getDistanceValue(LOOK_LEFT_ANGLE);
+        delay(250);
+
+        lookAtAngle(LOOK_STRAIGHT_ANGLE);
+
+        if (rightDistance > leftDistance ) {
+          moveRight();
+          delay(1000);
+          moveStop();
+          client.publish("outTopic/Collision/Decision", "3");
+        }
+        else if (rightDistance < leftDistance)
+        {
+          moveLeft();
+          delay(1000);
+          moveStop();
+          client.publish("outTopic/Collision/Decision", "4");
+        }
+        else {
+          moveBackward();
+          client.publish("outTopic/Collision/Distance", "Right Left Same");
+        }
+      }
+      else if (distance >= COLLISION_DISTANCE)
       {
-        moveLeft();
-        delay(1000);
-        moveStop();
-      }
-      else {
-        moveBackward();
-        client.publish("outTopic/Collision/Distance", "ERROR 1");
+        lookAtAngle(LOOK_STRAIGHT_ANGLE);
+        client.publish("outTopic/Collision/Status", "0");
+        client.publish("outTopic/Collision/Distance", "");
+        moveForward();
       }
     }
-    else if (distance >= COLLISION_DISTANCE)
-    {
+    else if (isAutoMovement == false) {
+      moveStop();
       lookAtAngle(LOOK_STRAIGHT_ANGLE);
-      client.publish("outTopic/Collision/Status", "0");
-      client.publish("outTopic/Collision/Distance", "");
-      moveForward();
+      client.publish("outTopic/Collision/Distance", "ERROR 1: Please Restart");
     }
-  }
-  else if (!isAutoMovement) {
-    moveStop();
-    lookAtAngle(LOOK_STRAIGHT_ANGLE);
-    client.publish("outTopic/Collision/Distance", "ERROR 2");
-  }
-  else{
-    client.publish("outTopic/Collision/Distance", "ERROR 3");
+    else {
+      client.publish("outTopic/Collision/Distance", "ERROR 2: Please Restart");
+    }
   }
 
   if (now - lastMsg > MESSAGE_PUBLISH_TIME) {
