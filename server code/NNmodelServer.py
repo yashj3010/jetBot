@@ -118,9 +118,9 @@ def convCsv():
         csvwriter.writerow(collisions) 
 
     answer = "Success"
-    
+
     return str(answer),201       
 
 
 # start the flask app, allow remote connections
-app.run(debug=True, host='127.0.1.2', port= 4444)
+app.run(debug=True, host='0.0.0.0', port= 4444)
