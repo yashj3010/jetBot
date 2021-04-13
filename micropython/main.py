@@ -46,8 +46,8 @@ distanceServoPin = machine.Pin(DISTANCE_SERVO_PIN)
 
 isAutoMovement = False
 getDistance = False
-boundsDetectionStart = False
 
+boundsDetectionStart = 0
 last_message = 0
 lastMsgDistance = 0
 lastMsgDistanceMovement = 0
@@ -61,53 +61,57 @@ distanceSensor = HCSR04(trigger_pin=TRIGGER_PIN, echo_pin=ECHO_PIN,echo_timeout_
 
 def lookLeft():
     distanceServo.write_angle(60)
-    time.sleep(.5)
+    time.sleep_ms(200)
 
 def lookStraight():
     distanceServo.write_angle(90)
-    time.sleep(.5)
+    time.sleep_ms(200)
 
 def lookRight():
     distanceServo.write_angle(120)
-    time.sleep(.5)
+    #time.sleep(.5)
 
 def sub_cb(topic, msg):
   print((topic, msg))
 
   if topic == b'inTopic' and msg == MOVE_FORWARD_CALLBACK:
-    print("1 Recieved")
     movement.moveForward()
 
   if topic == b'inTopic' and msg == MOVE_BACKWARD_CALLBACK:
     movement.moveBackward()
-    print("2 Recieved")
 
   if topic == b'inTopic' and msg == MOVE_RIGHT_CALLBACK:
     movement.moveRight()
-    print("3 Recieved")
 
   if topic == b'inTopic' and msg == MOVE_LEFT_CALLBACK:
     movement.moveLeft()
-    print("4 Recieved")
 
   if topic == b'inTopic' and msg == MOVE_STOP_CALLBACK:
     movement.moveStop()
-    print("5 Recieved")
 
   if topic == b'inTopic' and msg == TOGGLE_GETDISTANCE_CALLBACK:
     movement.toggleGetDistance()
-    print("6 Recieved")
 
   if topic == b'inTopic' and msg == TOGGLE_AUTOMOVEMENT_CALLBACK:
     movement.toggleAutoMovement()
-    print("7 Recieved")
 
-  if topic == b'inTopic' and msg == TIMER_MOVEMENT_CALLBACK:
-    #movement.moveForward()
-    print("8 Recieved: Movement On Timer")
+  if topic == b'inTopic/MovementTimer':
+    toRun = int(msg.decode("utf-8")[1:])
+    start = round(time.time() * 1000)
+    end = start + toRun
+    
+    print("Move For:",toRun,"Milliseconds", "Started At:",start,"End At:",end)
 
+    if msg[0] == MOVE_FORWARD_CALLBACK[0]:
+      while(round(time.time() * 1000) < end):
+            movement.moveForward()
+
+    elif msg[0] == MOVE_BACKWARD_CALLBACK[0]:
+      while(round(time.time() * 1000) < end):
+            movement.moveBackward()
+      
   if topic == b'inTopic/Router/Time':
-    print(msg)
+    movement.moveRouter(msg.decode("utf-8"))
 
   if topic == b'servoDown':
     print(msg)
@@ -118,7 +122,7 @@ def sub_cb(topic, msg):
   if topic == b'servoDistance':
     print(int(msg))
     distanceServo.write_angle(int(msg))
-    time.sleep(0.5)
+    time.sleep_ms(250)
 
 
 def connect_and_subscribe():
@@ -133,6 +137,7 @@ def connect_and_subscribe():
   client.subscribe("servoUp")
   client.subscribe("servoDistance")
   client.subscribe("inTopic/Router/Time")
+  client.subscribe("inTopic/MovementTimer")
 
   print('Connected to %s MQTT broker, subscribed to %s topic' % (mqtt_server, topic_sub))
   return client
@@ -149,39 +154,25 @@ except OSError as e:
 
 while True:
   try:
-    DISTANCE_SAMPLE_TIME = 1
-    MESSAGE_PUBLISH_TIME = 2
-    COLLISION_DISTANCE = 20
-
     now = time.time()
     client.check_msg()
 
     if getDistance:
-      if now - lastMsgDistance > DISTANCE_SAMPLE_TIME:
         lookStraight()
-        time.sleep(0.5)
-
         distance = distanceSensor.distance_cm()
         client.publish("outTopic/Distance", str(distance))
 
-        lastMsgDistance = time.time()
-
     if isAutoMovement:
-      # if now - lastMsgDistanceMovement > DISTANCE_SAMPLE_TIME:
-      lastMsgDistanceMovement = time.time()
-      lookStraight()
-      time.sleep(0.5)
 
       distance = distanceSensor.distance_cm()
       client.publish("outTopic/Distance", str(distance))
 
-      if distance < COLLISION_DISTANCE:
+      if distance < 50:
 
         client.publish("outTopic/Collision/Status", "1")
         client.publish("outTopic/Collision/Distance", str(distance))
 
-        xEnd = now - boundsDetectionStart
-        client.publish("outTopic/Bounds/X", str(xEnd))
+        client.publish("outTopic/Bounds/X", str(now - boundsDetectionStart))
 
         movement.moveStop()
 
@@ -192,7 +183,6 @@ while True:
         leftDistance = distanceSensor.distance_cm()
         
         lookStraight()
-
 
         if rightDistance > leftDistance:
           movement.moveRight()
@@ -210,7 +200,7 @@ while True:
           movement.moveBackward()
           client.publish("outTopic/Collision/Distance", "Right Left Same")
 
-      elif (distance >= COLLISION_DISTANCE):
+      elif (distance >= 50):
         client.publish("outTopic/Collision/Status", "0")
         client.publish("outTopic/Collision/Distance", "")
         movement.moveForward()
@@ -218,13 +208,13 @@ while True:
     elif isAutoMovement == False:
       movement.moveStop()
       lookStraight()
-      time.sleep(0.5)
+      time.sleep_ms(100)
       client.publish("outTopic/Collision/Distance", "ERROR 1: Please Restart")
     else:
       client.publish("outTopic/Collision/Distance", "ERROR 2: Please Restart")
 
       
-    if now - last_message > MESSAGE_PUBLISH_TIME:
+    if now - last_message > 2:
       msg = b'Hello #%d' % counter
       client.publish(b'outTopic/Status/Alive',msg)
       last_message = time.time()
@@ -233,6 +223,3 @@ while True:
       
   except OSError as e:
     restart_and_reconnect()
-
-
-
