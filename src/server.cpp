@@ -164,22 +164,6 @@ void powerStatus() {
   client.publish("outTopic/Status/Alive", msg);
 }
 
-void movementTimer() {
-  unsigned long now = millis();
-  if (now >= endTime)
-  {
-    // Serial.println("STOPPED");
-    // toggleAutoMovement();
-    isOnTimer = false;
-    Serial.println(isAutoMovement);
-  }
-  else {
-    // Serial.println("KEEP ON GOING");
-    moveForward();
-  }
-
-}
-
 int getDistanceValue(int angle) {
   // lookAtAngle(angle);
   servoDistance.write(angle);
@@ -198,24 +182,6 @@ int getDistanceValue(int angle) {
   // Serial.println(distance);
   client.publish("outTopic/Distance", PackIntData(distance, lightchar));
   return distance;
-}
-
-void convertStrtoArr(String str)
-{
-    int j = 0, i;
-
-    for (i = 0; str[i] != '\0'; i++) {
-        if (str[i] == ',')
-            continue;
-         if (str[i] == ' '){
-            j++;
-        }
-        else {
-            turnsDirection[j] = turnsDirection[j] * 10 + (str[i] - 48);
-        }
-    }
-
-    //turnsDirection = arr;
 }
 
 char* PackIntData(int a , char b[]) {
@@ -294,26 +260,26 @@ void callback(char* topic, byte * payload, unsigned int length) {
     if ((char)payload[0] == '7') {
       toggleAutoMovement();
     }
-    if ((char)payload[0] == '8') {
+    // if ((char)payload[0] == '8') {
 
-      char dur[2];
-      dur[0] = (char)payload[1];
-      dur[1] = (char)payload[2];
+    //   char dur[2];
+    //   dur[0] = (char)payload[1];
+    //   dur[1] = (char)payload[2];
 
-      initialTime = millis();
-      duration = atoi(dur);
-      duration *= 1000;
-      endTime = initialTime + duration;
+    //   initialTime = millis();
+    //   duration = atoi(dur);
+    //   duration *= 1000;
+    //   endTime = initialTime + duration;
 
-      // Serial.print(duration);
-      // Serial.println("duration");
-      // Serial.print(endTime);
-      // Serial.println("endTime");
+    //   // Serial.print(duration);
+    //   // Serial.println("duration");
+    //   // Serial.print(endTime);
+    //   // Serial.println("endTime");
 
-      toggleAutoMovement();
-      isOnTimer = true;
-      movementTimer();
-    }
+    //   toggleAutoMovement();
+    //   isOnTimer = true;
+    //   movementTimer();
+    // }
 
   }
 
@@ -327,13 +293,6 @@ void callback(char* topic, byte * payload, unsigned int length) {
       inputMsg += ((char)payload[i]);
     }
     convertStrtoArr(inputMsg);
-    size_t n = sizeof(turnsDirection) / sizeof(turnsDirection[0]);
-    Serial.print("#############");
-
-    for (int i = 0; i < n; i++)
-    {
-      Serial.print(turnsDirection[i]);
-    }
   }
 
   if (strcmp(topic, "servoDown") == 0)

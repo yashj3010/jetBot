@@ -14,9 +14,8 @@ gc.collect()
 ssid = 'Node 0'
 password = 'yashj1030'
 mqtt_server = '192.168.0.113'
-#EXAMPLE IP ADDRESS
-#mqtt_server = '192.168.1.144'
 client_id = ubinascii.hexlify(machine.unique_id())
+
 topic_sub = b'notification'
 topic_sub = b'inTopic'
 topic_pub = b'hello'
