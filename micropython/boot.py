@@ -1,5 +1,3 @@
-# Complete project details at https://RandomNerdTutorials.com
-
 import time
 from umqttsimple import MQTTClient
 import ubinascii
