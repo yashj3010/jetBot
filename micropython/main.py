@@ -1,11 +1,43 @@
 #Defines
 import time
+import utime
 import movement
 import machine 
+from machine import I2C, Pin
+from time import sleep
+import dht 
+from ds1307 import DS1307
+import machine
+
+sensor = dht.DHT11(Pin(14))
+
+sclPin = Pin(22) # serial clock pin
+sdaPin = Pin(21) # serial data pin
+
+i2c_object = I2C(0,              # positional argument - I2C id
+                  scl = sclPin,  # named argument - serial clock pin
+                  sda = sdaPin,  # named argument - serial data pin
+                  freq = 400000 )# named argument - i2c frequency
+
+result = I2C.scan(i2c_object) # scan i2c bus for available devices
+
+print("I2C scan result : ", result)
+if result != []:
+    print("I2C connection successfull")
+else:
+    print("retry")
+
+
+# clock object at the dedicated i2c port
+clockObject = DS1307(i2c_object)
+
+#  enable the RTC module
+clockObject.halt(False) # 32 khz crystal enable
 
 from umqttsimple import MQTTClient
 
 from sensors import HCSR04
+from sensors import Servo
 from sensors import Servo
 
 from boot import client_id
@@ -13,7 +45,6 @@ from boot import ssid
 from boot import password
 from boot import mqtt_server
 from boot import topic_sub
-from sensors import Servo
 
 SERVO_DOWN_PIN     = 21
 SERVO_UP_PIN       = 22
@@ -71,6 +102,20 @@ def lookRight():
     distanceServo.write_angle(120)
     #time.sleep(.5)
 
+def getTemp123():
+    sleep(2)
+    sensor.measure()
+    temp = sensor.temperature()
+    hum = sensor.humidity()
+    client.publish("outTopic/Temp", str(temp))
+    client.publish("outTopic/Humidity", str(hum))
+    print(temp)
+    print(hum)
+
+def getTime():
+    print(ds.datetime(now))
+    
+    
 def sub_cb(topic, msg):
   print((topic, msg))
 
@@ -146,7 +191,7 @@ def restart_and_reconnect():
   print('Failed to connect to MQTT broker. Reconnecting...')
   time.sleep(10)
   machine.reset()
-
+  
 try:
   client = connect_and_subscribe()
 except OSError as e:
@@ -156,17 +201,16 @@ while True:
   try:
     now = time.time()
     client.check_msg()
-
     if getDistance:
         lookStraight()
         distance = distanceSensor.distance_cm()
         client.publish("outTopic/Distance", str(distance))
 
     if isAutoMovement:
-
       distance = distanceSensor.distance_cm()
       client.publish("outTopic/Distance", str(distance))
-
+      #getTemp123()
+      print(clockObject.datetime())
       if distance < 50:
 
         client.publish("outTopic/Collision/Status", "1")
@@ -223,3 +267,4 @@ while True:
       
   except OSError as e:
     restart_and_reconnect()
+
