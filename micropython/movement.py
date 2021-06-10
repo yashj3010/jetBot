@@ -10,10 +10,6 @@ BIT0 = Pin(BIT0PIN, Pin.OUT)
 BIT1 = Pin(BIT1PIN, Pin.OUT)
 ENABLE = Pin(ENABLEPIN, Pin.OUT)
 
-
-# isAutoMovement = main.isAutoMovement
-# getDistance = main.getDistance
-
 def moveBackward():
   BIT0.value(1)
   BIT1.value(1)
@@ -37,10 +33,7 @@ def moveLeft():
 def moveStop():
   ENABLE.value(0)
 
-def moveRouter(route):
-    import main
-    #moveStop()
-    
+def moveRouter(route,client):
     seperated = route.split(":")
     timeToRun = seperated[0].split(",")
     turnsToTake = seperated[1].split(",")
@@ -54,15 +47,15 @@ def moveRouter(route):
         if i == 3 or i == 4:
             pass
         else:
-            main.client.publish("outTopic/Errors/Router", "Turns Must Be 3 or 4")
+            client.publish("outTopic/Errors/Router", "Turns Must Be 3 or 4")
             return
         
     if len(timeToRun) == len(turnsToTake):
         for i in range(len(timeToRun)):
             commandList.append([timeToRun[i],turnsToTake[i]])
-        main.client.publish("outTopic/Errors/Router", "SuccesFully Parsed")
+            client.publish("outTopic/Errors/Router", "SuccesFully Parsed")
     else:
-        main.client.publish("outTopic/Errors/Router", "Unequal Lengths Of Commands")
+        client.publish("outTopic/Errors/Router", "Unequal Lengths Of Commands")
         return
     
     for i in range(len(commandList)):
@@ -88,21 +81,12 @@ def moveRouter(route):
         
         moveStop()
 
-def toggleGetDistance():
-  import main
-  main.getDistance = not main.getDistance
-  if main.getDistance:
-    main.client.publish("outTopic/Status/Distance", "1")
-  else:
-    main.client.publish("outTopic/Status/Distance", "0")
-  
-def toggleAutoMovement():
-  import main
-  main.boundsDetectionStart = time.time()
-  main.isAutoMovement = not main.isAutoMovement
+def toggleGetDistance(getDistance):
+  getDistance = not getDistance
+  return getDistance
 
-  if (not main.isAutoMovement):
-    main.client.publish("outTopic/Status/AutoMovement", "0")
-    moveStop()
-  else:
-    main.client.publish("outTopic/Status/AutoMovement", "1")
+def toggleAutoMovement(isAutoMovement,boundsDetectionStart):
+  boundsDetectionStart = time.time()
+  isAutoMovement = not isAutoMovement
+  return isAutoMovement, boundsDetectionStart
+

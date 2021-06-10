@@ -1,43 +1,11 @@
 #Defines
 import time
 import utime
-import movement
-import machine 
-from machine import I2C, Pin
-from time import sleep
-import dht 
-from ds1307 import DS1307
 import machine
-
-sensor = dht.DHT11(Pin(14))
-
-sclPin = Pin(22) # serial clock pin
-sdaPin = Pin(21) # serial data pin
-
-i2c_object = I2C(0,              # positional argument - I2C id
-                  scl = sclPin,  # named argument - serial clock pin
-                  sda = sdaPin,  # named argument - serial data pin
-                  freq = 400000 )# named argument - i2c frequency
-
-result = I2C.scan(i2c_object) # scan i2c bus for available devices
-
-print("I2C scan result : ", result)
-if result != []:
-    print("I2C connection successfull")
-else:
-    print("retry")
-
-
-# clock object at the dedicated i2c port
-clockObject = DS1307(i2c_object)
-
-#  enable the RTC module
-clockObject.halt(False) # 32 khz crystal enable
-
-from umqttsimple import MQTTClient
+import movement
+from time import sleep
 
 from sensors import HCSR04
-from sensors import Servo
 from sensors import Servo
 
 from boot import client_id
@@ -45,6 +13,8 @@ from boot import ssid
 from boot import password
 from boot import mqtt_server
 from boot import topic_sub
+
+from umqttsimple import MQTTClient
 
 SERVO_DOWN_PIN     = 21
 SERVO_UP_PIN       = 22
@@ -74,7 +44,6 @@ servoDownPin = machine.Pin(SERVO_DOWN_PIN)
 servoUpPin = machine.Pin(SERVO_UP_PIN)
 distanceServoPin = machine.Pin(DISTANCE_SERVO_PIN)
 
-
 isAutoMovement = False
 getDistance = False
 
@@ -89,7 +58,7 @@ servoUp       = Servo(servoUpPin)
 distanceServo = Servo(distanceServoPin)
 
 distanceSensor = HCSR04(trigger_pin=TRIGGER_PIN, echo_pin=ECHO_PIN,echo_timeout_us=1000000)
-
+   
 def lookLeft():
     distanceServo.write_angle(60)
     time.sleep_ms(200)
@@ -100,25 +69,11 @@ def lookStraight():
 
 def lookRight():
     distanceServo.write_angle(120)
-    #time.sleep(.5)
-
-def getTemp123():
-    sleep(2)
-    sensor.measure()
-    temp = sensor.temperature()
-    hum = sensor.humidity()
-    client.publish("outTopic/Temp", str(temp))
-    client.publish("outTopic/Humidity", str(hum))
-    print(temp)
-    print(hum)
-
-def getTime():
-    print(ds.datetime(now))
-    
-    
+       
 def sub_cb(topic, msg):
   print((topic, msg))
-
+  global getDistance,isAutoMovement,boundsDetectionStart
+  
   if topic == b'inTopic' and msg == MOVE_FORWARD_CALLBACK:
     movement.moveForward()
 
@@ -135,11 +90,20 @@ def sub_cb(topic, msg):
     movement.moveStop()
 
   if topic == b'inTopic' and msg == TOGGLE_GETDISTANCE_CALLBACK:
-    movement.toggleGetDistance()
+    getDistance = movement.toggleGetDistance(getDistance)
+    if getDistance:
+        client.publish("outTopic/Status/Distance", "1")
+    else:
+        client.publish("outTopic/Status/Distance", "0")
 
   if topic == b'inTopic' and msg == TOGGLE_AUTOMOVEMENT_CALLBACK:
-    movement.toggleAutoMovement()
-
+    isAutoMovement,boundsDetectionStart = movement.toggleAutoMovement(isAutoMovement,boundsDetectionStart)
+    if (not isAutoMovement):
+     client.publish("outTopic/Status/AutoMovement", "0")
+     movement.moveStop()
+    else:
+     client.publish("outTopic/Status/AutoMovement", "1")
+     
   if topic == b'inTopic/MovementTimer':
     toRun = int(msg.decode("utf-8")[1:])
     start = round(time.time() * 1000)
@@ -156,7 +120,7 @@ def sub_cb(topic, msg):
             movement.moveBackward()
       
   if topic == b'inTopic/Router/Time':
-    movement.moveRouter(msg.decode("utf-8"))
+    movement.moveRouter(msg.decode("utf-8"), client)
 
   if topic == b'servoDown':
     print(msg)
@@ -209,8 +173,6 @@ while True:
     if isAutoMovement:
       distance = distanceSensor.distance_cm()
       client.publish("outTopic/Distance", str(distance))
-      #getTemp123()
-      print(clockObject.datetime())
       if distance < 50:
 
         client.publish("outTopic/Collision/Status", "1")
@@ -267,4 +229,3 @@ while True:
       
   except OSError as e:
     restart_and_reconnect()
-
