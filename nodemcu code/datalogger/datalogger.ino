@@ -11,20 +11,24 @@
 #include "RTClib.h"
 #include <Wire.h>
 #include "SSD1306.h"
-#include <ESP8266WiFi.h>          
+#include <ESP8266WiFi.h>
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
+#include <Servo.h>
 
 // ----------- DEFINES ----------------
 #define DHTPIN 0
 #define DHTTYPE DHT11
 #define controllerID '1'
 #define analogInput A0
+
+#define SERVO_DOWN_PIN 21
+#define SERVO_UP_PIN 22
 // ----------- VARIABLE DECLATIONS ----------------
 
 // ----------- CONSTANT ----------------
-const char* ssid = "Node 0";
-const char* password = "yashj1030";
+const char *ssid = "Node 0";
+const char *password = "yashj1030";
 const char *mqtt_server = "192.168.0.113";
 
 // ----------- LONG ----------------
@@ -35,8 +39,8 @@ char lightchar[200];
 
 // ----------- INTEGERS ----------------
 int value = 0;
-int light= 0;
-
+int light = 0;
+int pos = 0;
 // ----------- FLOATS ----------------
 
 // ----------- STRING ----------------
@@ -58,7 +62,7 @@ String lightStr;
 14 -- D5 -- S0
 15 -- D8 -- S3
 */
-int outputPins[] = {0,2, 4, 5, 12, 13, 14, 15};
+int outputPins[] = {0, 2, 4, 5, 12, 13, 14, 15};
 
 // ----------- INSTANCES ----------------
 WiFiClient espClient;
@@ -67,7 +71,10 @@ DHT_Unified dht(DHTPIN, DHTTYPE);
 uint32_t delayMS;
 sensors_event_t event;
 RTC_DS1307 rtc;
-SSD1306  display(0x3c, 4, 5);
+SSD1306 display(0x3c, 4, 5);
+
+Servo servoUp;
+Servo servoDown;
 
 // ----------- HELPER FUNCTIONS ----------------
 char *PackIntData(int a, char b[])
@@ -93,7 +100,7 @@ char *PackStringData(String a, char b[])
 int setOutputMode(int outputPins[])
 {
   int len = sizeof(outputPins) / sizeof(outputPins[0]);
-  for (int i = 0; i < len ; i++)
+  for (int i = 0; i < len; i++)
   {
     pinMode(outputPins[i], OUTPUT);
     digitalWrite(outputPins[i], LOW);
@@ -108,16 +115,18 @@ int updatePinStatus(char Pin, int status)
 
 int togglePins(String payload)
 {
-  if (payload[0] == controllerID){
+  if (payload[0] == controllerID)
+  {
 
-    if (payload[2] == 'H'){
-      digitalWrite(payload[1],HIGH);
-      updatePinStatus((char)payload[1],1);
+    if (payload[2] == 'H')
+    {
+      digitalWrite(payload[1], HIGH);
+      updatePinStatus((char)payload[1], 1);
     }
     else if (payload[2] == 'L')
     {
-      digitalWrite(payload[1],LOW);
-      updatePinStatus((char)payload[1],0);
+      digitalWrite(payload[1], LOW);
+      updatePinStatus((char)payload[1], 0);
     }
   }
   return 0;
@@ -144,25 +153,25 @@ int getTemp()
 
 int getDateTime()
 {
- DateTime time = rtc.now();
- date = String(time.timestamp(DateTime::TIMESTAMP_DATE));
- timeStamp = String(time.timestamp(DateTime::TIMESTAMP_TIME));
- Serial.print(timeStamp);
- Serial.print(date);
- Serial.print("\n");
+  DateTime time = rtc.now();
+  date = String(time.timestamp(DateTime::TIMESTAMP_DATE));
+  timeStamp = String(time.timestamp(DateTime::TIMESTAMP_TIME));
+  Serial.print(timeStamp);
+  Serial.print(date);
+  Serial.print("\n");
 
-
- client.publish("outTopic/Date", PackStringData(date, lightchar));
- client.publish("outTopic/Time", PackStringData(timeStamp, lightchar));
+  client.publish("outTopic/Date", PackStringData(date, lightchar));
+  client.publish("outTopic/Time", PackStringData(timeStamp, lightchar));
 }
 
-void getLight(){
-    light = analogRead(analogInput);
-    lightStr = (String)light;
-    Serial.print("Light:");
-    Serial.print(light);
-    Serial.print("\n");
-    client.publish("outTopic/Light", PackStringData(lightStr, lightchar));
+void getLight()
+{
+  light = analogRead(analogInput);
+  lightStr = (String)light;
+  Serial.print("Light:");
+  Serial.print(light);
+  Serial.print("\n");
+  client.publish("outTopic/Light", PackStringData(lightStr, lightchar));
 }
 
 int displayOled()
@@ -173,7 +182,7 @@ int displayOled()
   display.setTextAlignment(TEXT_ALIGN_LEFT);
   display.setFont(ArialMT_Plain_16);
 
-  display.drawString(0, 0,date);
+  display.drawString(0, 0, date);
   display.drawString(0, 14, timeStamp);
 
   display.drawString(0, 28, "temp:");
@@ -203,7 +212,8 @@ int logData()
   return 0;
 }
 
-void setup_wifi() {
+void setup_wifi()
+{
 
   delay(10);
   // We start by connecting to a WiFi network
@@ -214,7 +224,8 @@ void setup_wifi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED)
+  {
     delay(500);
     Serial.print(".");
   }
@@ -227,21 +238,28 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 
-void reconnect() {
+void reconnect()
+{
   // Loop until we're reconnected
-  while (!client.connected()) {
+  while (!client.connected())
+  {
     Serial.print("Attempting MQTT connection...");
     // Create a random client ID
     String clientId = "ESP8266Client-";
     clientId += String(random(0xffff), HEX);
     // Attempt to connect
-    if (client.connect(clientId.c_str())) {
+    if (client.connect(clientId.c_str()))
+    {
       Serial.println("connected");
       // Once connected, publish an announcement...
       client.publish("outTopic", "hello world");
       // ... and resubscribe
       client.subscribe("inTopic");
-    } else {
+      client.subscribe("servoUp");
+      client.subscribe("servoDown");
+    }
+    else
+    {
       Serial.print("failed, rc=");
       Serial.print(client.state());
       Serial.println(" try again in 5 seconds");
@@ -267,7 +285,18 @@ void callback(char *topic, byte *payload, unsigned int length)
   {
     //togglePins((String)payload[0]);
     Serial.println((String)payload[0]);
+  }
 
+  if (strcmp(topic, "servoDown") == 0)
+  {
+    pos = inputMsg.toInt();
+    servoDown.write(pos);
+  }
+
+  if (strcmp(topic, "servoUp") == 0)
+  {
+    pos = inputMsg.toInt();
+    servoUp.write(pos);
   }
 }
 
@@ -277,7 +306,7 @@ void setup()
 
   display.init();
   display.clear();
-  display.flipScreenVertically();// flipping came in handy for me with regard 
+  display.flipScreenVertically(); // flipping came in handy for me with regard
   display.setFont(ArialMT_Plain_16);
 
   display.clear();
@@ -301,15 +330,15 @@ void setup()
   display.drawString(0, 14, "Wifi");
   display.display();
 
-
   pinMode(analogInput, INPUT);
 
-  Wire.pins(4, 5);// 4=sda, 5=scl
-  Wire.begin(4,5);// 4=sda, 5=scl
+  Wire.pins(4, 5);  // 4=sda, 5=scl
+  Wire.begin(4, 5); // 4=sda, 5=scl
 
   rtc.begin();
   Serial.println("Started");
-   if (! rtc.begin()) {
+  if (!rtc.begin())
+  {
     Serial.println("Couldn't find RTC");
     Serial.flush();
     abort();
@@ -317,9 +346,13 @@ void setup()
     display.drawString(0, 0, "Error");
     display.drawString(0, 14, "RTC 404");
     display.display();
+
+    servoDown.attach(SERVO_DOWN_PIN);
+    servoUp.attach(SERVO_UP_PIN);
   }
 
-  if (! rtc.isrunning()) {
+  if (!rtc.isrunning())
+  {
     Serial.println("RTC is NOT running, let's set the time!");
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
@@ -331,7 +364,7 @@ void setup()
   dht.humidity().getSensor(&sensor);
 
   delayMS = sensor.min_delay / 1000;
-  
+
   delay(10);
   // We start by connecting to a WiFi network
   Serial.println();
@@ -341,7 +374,8 @@ void setup()
   display.drawString(0, 14, "WIFI");
   display.display();
 
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED)
+  {
     delay(500);
     Serial.println(".");
   }
@@ -373,7 +407,8 @@ void setup()
 void loop()
 {
   delay(10);
-  if (!client.connected()) {
+  if (!client.connected())
+  {
     reconnect();
   }
   client.loop();
@@ -387,7 +422,7 @@ void loop()
     getLight();
 
     logData();
-    
+
     displayOled();
   }
 }

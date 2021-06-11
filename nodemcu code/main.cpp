@@ -14,7 +14,7 @@
 #include <ESP8266WiFi.h>          
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
-#include <WiFiManager.h> 
+#include <Servo.h>
 
 // ----------- DEFINES ----------------
 #define DHTPIN 0
@@ -60,7 +60,6 @@ String lightStr;
 15 -- D8 -- S3
 */
 int outputPins[] = {0,2, 4, 5, 12, 13, 14, 15};
-int controlPins[4] = {s0, s1, s2, s3};
 
 // ----------- INSTANCES ----------------
 WiFiClient espClient;
@@ -70,6 +69,9 @@ uint32_t delayMS;
 sensors_event_t event;
 RTC_DS1307 rtc;
 SSD1306  display(0x3c, 4, 5);
+
+Servo servoUp;
+Servo servoDown;
 
 // ----------- HELPER FUNCTIONS ----------------
 char *PackIntData(int a, char b[])
@@ -127,7 +129,6 @@ int togglePins(String payload)
 
 int getTemp()
 {
-  digitalWrite(statusLed, HIGH);
   dht.humidity().getEvent(&event);
   Serial.print(F("Humidity: "));
   Serial.print(event.relative_humidity);
@@ -160,9 +161,6 @@ int getDateTime()
 }
 
 void getLight(){
-    digitalWrite(s0, LOW);
-    digitalWrite(s1, HIGH);
-
     light = analogRead(analogInput);
     lightStr = (String)light;
     Serial.print("Light:");
@@ -300,8 +298,6 @@ void setup()
   display.drawString(0, 14, "Initialised");
   display.display();
 
-  WiFiManager wifiManager;
-  wifiManager.autoConnect("Smart Irrigation Node 1");
   Serial.println("connected...yeey :");
 
   display.clear();
