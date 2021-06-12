@@ -66,8 +66,6 @@ const unsigned char PROGMEM Frame26 [] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x
 
 
 void setup() {
-
- 
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
     Serial.println(F("SSD1306 allocation failed"));
     for(;;);
@@ -238,12 +236,6 @@ void loop() {
   display.drawBitmap(0,0,Frame26, 128, 64, 1);
   display.display();
   delay(frame_delay);
-  
-  // Frame27
-//  display.clearDisplay();
-//  display.drawBitmap(0,0,Frame27, 128, 64, 1);
-//  display.display();
-//  delay(frame_delay);
   
   if (frame_delay>50) frame_delay=frame_delay-20;
   
