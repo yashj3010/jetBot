@@ -26,7 +26,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 // ----------- DEFINES ----------------
 #define DHTPIN 0
 #define DHTTYPE DHT11
-#define controllerID '1'
+#define controllerID '0'
 #define analogInput A0
 
 #define SERVO_DOWN_PIN 14
@@ -173,32 +173,9 @@ int setOutputMode(int outputPins[])
   }
   return 0;
 }
-int updatePinStatus(char Pin, int status)
-{
-  client.publish("outTopic/pinStatus", PackIntData(status, lightchar));
-  return 0;
-}
 
-int togglePins(String payload)
-{
-  if (payload[0] == controllerID)
-  {
 
-    if (payload[2] == 'H')
-    {
-      digitalWrite(payload[1], HIGH);
-      updatePinStatus((char)payload[1], 1);
-    }
-    else if (payload[2] == 'L')
-    {
-      digitalWrite(payload[1], LOW);
-      updatePinStatus((char)payload[1], 0);
-    }
-  }
-  return 0;
-}
-
-int getTemp()
+void getTemp()
 {
   dht.humidity().getEvent(&event);
   // Serial.print(F("Humidity: "));
@@ -214,10 +191,9 @@ int getTemp()
   client.publish("outTopic/Temp", PackFloatData(event.temperature, lightchar));
   tempStr = String(event.temperature);
 
-  return 0;
 }
 
-int getDateTime()
+void getDateTime()
 {
   DateTime time = rtc.now();
   date = String(time.timestamp(DateTime::TIMESTAMP_DATE));
@@ -268,14 +244,14 @@ void getLight()
 //
 //  return 0;
 //}
-int logData()
+
+void logData()
 {
-  csvData = (String)controllerID + "," + date + "," + timeStamp + "," + tempStr + "," + humidityStr + "," + lightStr;
+  csvData = date + "," + timeStamp + "," + tempStr + "," + humidityStr + "," + lightStr + "," + (String)controllerID  ;
   // Serial.print("csvData:");
   // Serial.print(csvData);
   // Serial.print("\n");
   client.publish("outTopic/csvData", PackStringData(csvData, lightchar));
-  return 0;
 }
 
 void setup_wifi()

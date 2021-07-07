@@ -61,7 +61,7 @@ distanceSensor = HCSR04(trigger_pin=TRIGGER_PIN, echo_pin=ECHO_PIN,echo_timeout_
    
 def lookLeft():
     distanceServo.write_angle(60)
-    time.sleep_ms(200)
+    time.sleep_ms(500)
 
 def lookStraight():
     distanceServo.write_angle(90)
@@ -69,7 +69,8 @@ def lookStraight():
 
 def lookRight():
     distanceServo.write_angle(120)
-       
+    time.sleep_ms(500)
+    
 def sub_cb(topic, msg):
   print((topic, msg))
   global getDistance,isAutoMovement,boundsDetectionStart
