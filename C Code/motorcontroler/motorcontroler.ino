@@ -92,14 +92,15 @@ String readProtocol(){
   int bit1Sts = digitalRead(bit1);
 
   String status = String(bit0Sts) + String(bit1Sts); 
-
+  //Serial.println(status);
   return status;
 }
 
 void move(){
 
   bool enablePinSts = digitalRead(enablePin) == 1 ? true : false;
-
+  
+  Serial.println(digitalRead(enablePin));
   if (enablePinSts){
     
     String protocolStatus = readProtocol();

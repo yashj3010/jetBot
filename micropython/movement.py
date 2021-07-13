@@ -57,7 +57,7 @@ def moveRouter(route,client):
     else:
         client.publish("outTopic/Errors/Router", "Unequal Lengths Of Commands")
         return
-    
+
     for i in range(len(commandList)):
         toRun = commandList[i][0]
         start = round(time.time() * 1000)
